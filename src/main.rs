@@ -86,8 +86,6 @@ pub fn convolve_some_slices(src: &Image<i32>, ker: &Image<i32>) -> Image<i32> {
     output
 }
 
-// copy pasted from above
-// should learn macros instead
 pub fn convolve_some_slices_par(src: &Image<i32>, ker: &Image<i32>) -> Image<i32> {
     let (out_rows, out_cols) = (src.rows - ker.rows + 1, src.cols - ker.cols + 1);
     let mut output: Image<i32> = Image {
@@ -115,71 +113,51 @@ pub fn convolve_some_slices_par(src: &Image<i32>, ker: &Image<i32>) -> Image<i32
     output
 }
 
-// pub fn convolve_using_slices(src: &Image<i32>, ker: &Image<i32>) -> Image<i32> {
-//     let (out_rows, out_cols) = (src.rows - ker.rows + 1, src.cols - ker.cols + 1);
-//     let output: Image<i32> = Image {
-//         rows: out_rows,
-//         cols: out_cols,
-//         data: vec![0; (out_rows * out_cols) as usize],
-//     };
-//     // get slices into vector, where each slice is a row
-//     let image_rows: Vec<&[i32]> = src.data.chunks_exact(src.cols).collect();
-//     // take windows, so, we start with the first (kernel size) rows of the image
-//     let image_windows_of_rows: Vec<&[&[i32]]> = image_rows.windows(ker.rows).collect();
-//     let kernel_rows: Vec<&[i32]> = ker.data.windows(ker.rows).collect();
-//     image_windows_of_rows.iter().map(|window_of_rows| {
-//         (*window_of_rows)
-//             .iter()
-//             .zip(kernel_rows.iter())
-//             .map(|(image_row, kernel_row)| {
-//                 image_row
-//                     .windows(ker.cols)
-//                     .map(|img_row_slice| {
-//                         img_row_slice
-//                             .iter()
-//                             .zip(kernel_row.iter())
-//                             .map(|(image_elem, kernel_elem)| image_elem * kernel_elem)
-//                             .sum()
-//                     })
-//                     .sum()
-//             })
-//     });
-//     // get the kernel rows amount of each of these
-//     // .windows(ker.rows);
-//     output
-// }
+pub fn just_zero_fill(src: &Image<i32>, ker: &Image<i32>) -> Image<i32> {
+    let (out_rows, out_cols) = (src.rows - ker.rows + 1, src.cols - ker.cols + 1);
+    Image {
+        rows: out_rows,
+        cols: out_cols,
+        data: vec![0; (out_rows * out_cols) as usize],
+    }
+}
+
+pub fn get_image_and_kernel() -> (Image<i32>, Image<i32>) {
+    // 720p
+    // let (rows, cols) = (1280, 720);
+    // 4K
+    // let (rows, cols) = (3840, 2160);
+    // 8K
+    // let (rows, cols): (usize, usize) = (7680, 4320);
+    // Cruel
+    let (rows, cols): (usize, usize) = (7680 * 4, 4320 * 4);
+    let data: Vec<i32> = (0..(rows as i32 * cols as i32)).map(|x| x % 100).collect();
+    let to_convolve: Image<i32> = Image {
+        rows: rows,
+        cols: cols,
+        data: data,
+    };
+    let kernel_size = 3;
+    let kernel_data: Vec<i32> = (0..(kernel_size as i32 * kernel_size as i32)).collect();
+    let kernel: Image<i32> = Image {
+        rows: kernel_size,
+        cols: kernel_size,
+        data: kernel_data,
+    };
+    (to_convolve, kernel)
+}
 
 fn main() {
-    println!("Run cargo bench");
+    let (image, kernel) = get_image_and_kernel();
+    let conv = naive_convolve(&image, &kernel);
+    // let conv = convolve_some_slices_par(&image, &kernel);
+    println!("{}", conv.data.last().unwrap())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use test::Bencher;
-
-    fn get_image_and_kernel() -> (Image<i32>, Image<i32>) {
-        // 720p
-        let (rows, cols) = (1280, 720);
-        // 4K (movie)
-        // let (rows, cols) = (3840, 2160);
-        // 8K
-        // let (rows, cols): (usize, usize) = (7680, 4320);
-        let data: Vec<i32> = (0..(rows as i32 * cols as i32)).map(|x| x % 100).collect();
-        let to_convolve: Image<i32> = Image {
-            rows: rows,
-            cols: cols,
-            data: data,
-        };
-        let kernel_size = 3;
-        let kernel_data: Vec<i32> = (0..(kernel_size as i32 * kernel_size as i32)).collect();
-        let kernel: Image<i32> = Image {
-            rows: kernel_size,
-            cols: kernel_size,
-            data: kernel_data,
-        };
-        (to_convolve, kernel)
-    }
 
     #[bench]
     fn test_naive_convolve(b: &mut Bencher) {
@@ -210,6 +188,14 @@ mod tests {
         let (image, kernel) = get_image_and_kernel();
         b.iter(|| {
             convolve_some_slices_par(&image, &kernel);
+        });
+    }
+
+    #[bench]
+    fn test_just_zero_fill(b: &mut Bencher) {
+        let (image, kernel) = get_image_and_kernel();
+        b.iter(|| {
+            just_zero_fill(&image, &kernel);
         });
     }
 }
