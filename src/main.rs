@@ -93,19 +93,16 @@ pub fn convolve_some_slices_par(src: &Image<i32>, ker: &Image<i32>) -> Image<i32
         cols: out_cols,
         data: vec![0; (out_rows * out_cols) as usize],
     };
-    let mut output_rows: Vec<(&mut [i32], usize)> = output
+    output
         .data
-        .chunks_exact_mut(output.cols)
-        .zip(0..output.rows)
-        .collect();
-    output_rows
-        .par_iter_mut()
-        .for_each(|(out_row, out_row_index)| {
+        .par_chunks_mut(output.cols)
+        .enumerate()
+        .for_each(|(out_row_index, out_row)| {
             for out_col_index in 0..out_row.len() {
                 for ker_r in 0..ker.rows {
                     for ker_c in 0..ker.cols {
                         out_row[out_col_index] +=
-                            src.data[(*out_row_index + ker_r) * src.cols + out_col_index + ker_c];
+                            src.data[(out_row_index + ker_r) * src.cols + out_col_index + ker_c];
                     }
                 }
             }
@@ -126,11 +123,11 @@ pub fn get_image_and_kernel() -> (Image<i32>, Image<i32>) {
     // 720p
     // let (rows, cols) = (1280, 720);
     // 4K
-    // let (rows, cols) = (3840, 2160);
+    let (rows, cols) = (3840, 2160);
     // 8K
     // let (rows, cols): (usize, usize) = (7680, 4320);
     // Cruel
-    let (rows, cols): (usize, usize) = (7680 * 4, 4320 * 4);
+    // let (rows, cols): (usize, usize) = (7680 * 4, 4320 * 4);
     let data: Vec<i32> = (0..(rows as i32 * cols as i32)).map(|x| x % 100).collect();
     let to_convolve: Image<i32> = Image {
         rows: rows,
